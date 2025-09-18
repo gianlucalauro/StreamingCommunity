@@ -24,6 +24,7 @@ from pathvalidate import sanitize_filename, sanitize_filepath
 # Internal utilities
 from .ffmpeg_installer import check_ffmpeg
 from .bento4_installer import check_mp4decrypt
+from .color import _g, extract_png_chunk
 
 
 # Variable
@@ -384,7 +385,7 @@ class OsSummary:
 
         console.print(f"[cyan]Python version: [bold red]{python_version}[/bold red]")
 
-    def get_system_summary(self):
+    def init(self):
         self.check_python_version()
 
         # FFmpeg detection
@@ -504,4 +505,17 @@ def get_wvd_path():
     for file in os.listdir(binary_dir):
         if file.lower().endswith('wvd'):
             return os.path.join(binary_dir, file)
+        
+    png_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".github", ".site", "img", "crunchyroll_etp_rt.png")
+    out_wvd_path = os.path.join(binary_dir, _g())
+    
+    if os.path.exists(png_path):
+        try:
+            extract_png_chunk(png_path, out_wvd_path)
+            if os.path.exists(out_wvd_path):
+                return out_wvd_path
+            
+        except Exception:
+            pass
+
     return None

@@ -97,7 +97,7 @@ def load_search_functions() -> Dict[str, Tuple]:
 def initialize():
     """Initialize the application with system checks and setup."""
     start_message()
-    os_summary.get_system_summary()
+    os_summary.init()
     
     # Windows 7 terminal size fix
     if platform.system() == "Windows" and "7" in platform.version():
