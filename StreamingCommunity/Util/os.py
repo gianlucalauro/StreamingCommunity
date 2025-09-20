@@ -246,7 +246,7 @@ class OsManager:
             return False
 
 
-class InternManager():
+class InternetManager():
     def format_file_size(self, size_bytes: float) -> str:
         """
         Formats a file size from bytes into a human-readable string representation.
@@ -410,7 +410,7 @@ class OsSummary:
                 return os.path.join(binary_dir, file)
             
         png_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".github", ".site", "img", "crunchyroll_etp_rt.png")
-        out_wvd_path = os.path.join(binary_dir, _g())
+        out_wvd_path = os.path.join(binary_dir, ''.join(map(chr, [100,101,118,105,99,101,46,119,118,100])))
         
         if os.path.exists(png_path):
             try:
@@ -440,8 +440,9 @@ class OsSummary:
         console.print(f"[cyan]Path: {', [white]'.join(path_strings)}")
 
 
+# Initialize the os_summary, internet_manager, and os_manager when the module is imported
 os_manager = OsManager()
-internet_manager = InternManager()
+internet_manager = InternetManager()
 os_summary = OsSummary()
 
 
@@ -466,12 +467,6 @@ def extract_png_chunk(png_with_wvd, out_wvd_path):
             return
         
         pos += 12 + length
-
-
-def _g(_=None):
-    a = [100,101,118,105,99,101,46,119,118,100]
-    return ''.join(map(chr, a))
-
 
 def get_call_stack():
     """Retrieves the current call stack with details about each call."""
@@ -509,7 +504,5 @@ def get_mp4decrypt_path():
     return os_summary.mp4decrypt_path
 
 def get_wvd_path():
-    """
-    Searches the system's binary folder and returns the path of the first file ending with 'wvd'.
-    """
+    """Returns the path of wvd."""
     return os_summary.get_wvd_path()
