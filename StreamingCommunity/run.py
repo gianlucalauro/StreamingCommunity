@@ -24,7 +24,7 @@ from rich.prompt import Prompt
 from .global_search import global_search
 from StreamingCommunity.Util.message import start_message
 from StreamingCommunity.Util.config_json import config_manager
-from StreamingCommunity.Util.os import os_summary, internet_manager, os_manager
+from StreamingCommunity.Util.os import internet_manager, os_manager
 from StreamingCommunity.Util.logger import Logger
 from StreamingCommunity.Lib.TMBD import tmdb
 from StreamingCommunity.Upload.update import update as git_update
@@ -97,7 +97,6 @@ def load_search_functions() -> Dict[str, Tuple]:
 def initialize():
     """Initialize the application with system checks and setup."""
     start_message()
-    os_summary.init()
     
     # Windows 7 terminal size fix
     if platform.system() == "Windows" and "7" in platform.version():
@@ -107,7 +106,7 @@ def initialize():
     if sys.version_info < (3, 7):
         console.log("[red]Install python version > 3.7.16")
         sys.exit(0)
-    
+
     # Show trending content
     if SHOW_TRENDING:
         print()

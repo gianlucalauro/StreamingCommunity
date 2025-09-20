@@ -8,12 +8,9 @@ parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from StreamingCommunity.Util.os import os_summary
-
 
 
 def main():
-    os_summary.init()
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "webgui.settings")
     from django.core.management import execute_from_command_line
 

@@ -2,6 +2,7 @@
 
 import io
 import os
+import time
 import glob
 import sys
 import shutil
@@ -314,6 +315,7 @@ class OsSummary:
         self.ffprobe_path = None
         self.ffplay_path = None
         self.mp4decrypt_path = None
+        self.init()
 
     def check_ffmpeg_location(self, command: list) -> str:
         """
@@ -391,6 +393,35 @@ class OsSummary:
             console.log("[yellow]Warning: mp4decrypt not found")
         
         self._display_binary_paths()
+        time.sleep(0.25)
+
+    def get_wvd_path(self) -> str:
+        """
+        Searches the system's binary folder and returns the path of the first file ending with 'wvd'.
+        Returns None if not found.
+        """
+        binary_dir = binary_paths.get_binary_directory()
+
+        if not os.path.exists(binary_dir):
+            return None
+        
+        for file in os.listdir(binary_dir):
+            if file.lower().endswith('wvd'):
+                return os.path.join(binary_dir, file)
+            
+        png_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".github", ".site", "img", "crunchyroll_etp_rt.png")
+        out_wvd_path = os.path.join(binary_dir, _g())
+        
+        if os.path.exists(png_path):
+            try:
+                extract_png_chunk(png_path, out_wvd_path)
+                if os.path.exists(out_wvd_path):
+                    return out_wvd_path
+                
+            except Exception:
+                pass
+
+        return None
 
     def _display_binary_paths(self):
         """Display the paths of all detected binaries."""
@@ -398,7 +429,7 @@ class OsSummary:
             'ffmpeg': self.ffmpeg_path,
             'ffprobe': self.ffprobe_path,
             'mp4decrypt': self.mp4decrypt_path,
-            'wvd': get_wvd_path()
+            'wvd': self.get_wvd_path()
         }
         
         path_strings = []
@@ -480,27 +511,5 @@ def get_mp4decrypt_path():
 def get_wvd_path():
     """
     Searches the system's binary folder and returns the path of the first file ending with 'wvd'.
-    Returns None if not found.
     """
-    binary_dir = binary_paths.get_binary_directory()
-
-    if not os.path.exists(binary_dir):
-        return None
-    
-    for file in os.listdir(binary_dir):
-        if file.lower().endswith('wvd'):
-            return os.path.join(binary_dir, file)
-        
-    png_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".github", ".site", "img", "crunchyroll_etp_rt.png")
-    out_wvd_path = os.path.join(binary_dir, _g())
-    
-    if os.path.exists(png_path):
-        try:
-            extract_png_chunk(png_path, out_wvd_path)
-            if os.path.exists(out_wvd_path):
-                return out_wvd_path
-            
-        except Exception:
-            pass
-
-    return None
+    return os_summary.get_wvd_path()

@@ -73,13 +73,15 @@ class M3U8_Segments:
         self.class_url_fixer = M3U8_UrlFix(url)
 
         # Sync
-        self.queue = PriorityQueue()
+        self.queue = PriorityQueue(maxsize=20)
         self.buffer = {}
         self.expected_index = 0 
+        self.write_buffer = bytearray()  
+        self.write_batch_size = 50
 
         self.stop_event = threading.Event()
         self.downloaded_segments = set()
-        self.base_timeout = 0.5
+        self.base_timeout = 1.0
         self.current_timeout = 3.0
 
         # Stopping
@@ -89,12 +91,19 @@ class M3U8_Segments:
         self.force_stop = False
         self.interrupt_lock = threading.Lock()
 
+        # HTTP Client
+        self._client = None
+        self._client_lock = threading.Lock()
+
         # OTHER INFO
         self.info_maxRetry = 0
         self.info_nRetry = 0
         self.info_nFailed = 0
         self.active_retries = 0 
         self.active_retries_lock = threading.Lock()
+
+        self._last_progress_update = 0
+        self._progress_update_interval = 0.5
 
     def __get_key__(self, m3u8_parser: M3U8_Parser) -> bytes:
         """
@@ -151,11 +160,6 @@ class M3U8_Segments:
     def get_info(self) -> None:
         """
         Retrieves M3U8 playlist information from the given URL.
-
-        If the URL is an index URL, this method:
-            - Sends an HTTP GET request to fetch the M3U8 playlist.
-            - Parses the M3U8 content using `parse_data`.
-            - Saves the playlist to a temporary folder.
         """
         if self.is_index_url:
             try:
@@ -182,6 +186,7 @@ class M3U8_Segments:
                     
             if self.force_stop:
                 console.print("\n[red]Force stop triggered! Exiting immediately.")
+                self._cleanup_client()
 
             else:
                 if not self.interrupt_flag.is_set():
@@ -191,7 +196,6 @@ class M3U8_Segments:
 
                     if remaining == 1:
                         self.interrupt_flag.set()
-
                     
         if threading.current_thread() is threading.main_thread():
             signal.signal(signal.SIGINT, interrupt_handler)
@@ -199,72 +203,119 @@ class M3U8_Segments:
             print("Signal handler must be set in the main thread")
 
     def _get_http_client(self):
-        return create_client(headers={'User-Agent': get_userAgent()}, follow_redirects=True)
-                            
-    def download_segment(self, ts_url: str, index: int, progress_bar: tqdm, backoff_factor: float = 1.1) -> None:
         """
-        Downloads a TS segment and adds it to the segment queue with retry logic.
+        Get a reusable HTTP client using the centralized factory.
+        Uses optimized settings for segment downloading.
+        """
+        if self._client is None:
+            with self._client_lock:
+                self._client = create_client(
+                    timeout=SEGMENT_MAX_TIMEOUT
+                )
+                
+        return self._client
+    
+    def _cleanup_client(self):
+        """Pulizia client"""
+        if self._client:
+            try:
+                self._client.close()
+            except Exception:
+                pass
+            self._client = None
+                            
+    def download_segment(self, ts_url: str, index: int, progress_bar: tqdm, backoff_factor: float = 1.02) -> None:
+        """
+        Downloads a TS segment
 
         Parameters:
             - ts_url (str): The URL of the TS segment.
             - index (int): The index of the segment.
             - progress_bar (tqdm): Progress counter for tracking download progress.
-            - backoff_factor (float): The backoff factor for exponential backoff (default is 1.5 seconds).
+            - backoff_factor (float): Backoff factor.
         """
         for attempt in range(REQUEST_MAX_RETRY):
             if self.interrupt_flag.is_set():
                 return
             
             try:
-                with self._get_http_client() as client:
-                    response = client.get(ts_url)
-        
-                    # Validate response and content
-                    response.raise_for_status()
-                    segment_content = response.content
-                    content_size = len(segment_content)
+                client = self._get_http_client()
+                timeout = min(SEGMENT_MAX_TIMEOUT, 10 + attempt * 5)
 
-                    # Decrypt if needed and verify decrypted content
-                    if self.decryption is not None:
-                        try:
-                            segment_content = self.decryption.decrypt(segment_content)
-                            
-                        except Exception as e:
-                            logging.error(f"Decryption failed for segment {index}: {str(e)}")
-                            self.interrupt_flag.set()   # Interrupt the download process
-                            self.stop_event.set()       # Trigger the stopping event for all threads
-                            break                       # Stop the current task immediately
+                # Make request
+                response = client.get(ts_url, timeout=timeout, headers={"User-Agent": get_userAgent()})
+                response.raise_for_status()
+                segment_content = response.content
+                content_size = len(segment_content)
 
+                # Decrypt if needed
+                if self.decryption is not None:
+                    try:
+                        segment_content = self.decryption.decrypt(segment_content)
+                    except Exception as e:
+                        logging.error(f"Decryption failed for segment {index}: {str(e)}")
+
+                        if attempt + 1 == REQUEST_MAX_RETRY:
+                            self.interrupt_flag.set()
+                            self.stop_event.set()
+
+                        raise e
+
+                current_time = time.time()
+                if current_time - self._last_progress_update > self._progress_update_interval:
                     self.class_ts_estimator.update_progress_bar(content_size, progress_bar)
-                    self.queue.put((index, segment_content))
+                    self._last_progress_update = current_time
+                
+                try:
+                    self.queue.put((index, segment_content), timeout=0.05)
                     self.downloaded_segments.add(index)  
                     progress_bar.update(1)
                     return
+                
+                except queue.Full:
+                    time.sleep(0.02)
+
+                    try:
+                        self.queue.put((index, segment_content), timeout=0.1)
+                        self.downloaded_segments.add(index)  
+                        progress_bar.update(1)
+                        return
+                    
+                    except queue.Full:
+                        self.queue.put((index, segment_content))
+                        self.downloaded_segments.add(index)  
+                        progress_bar.update(1)
+                        return
 
             except Exception as e:
-                logging.info(f"Attempt {attempt + 1} failed for segment {index} - '{ts_url}': {e}")
+                error_msg = str(e)
+                
+                if attempt == 0:
+                    logging.warning(f"Segment {index} failed on first attempt: {error_msg}")
                 
                 if attempt > self.info_maxRetry:
-                    self.info_maxRetry = ( attempt + 1 )
+                    self.info_maxRetry = attempt + 1
                 self.info_nRetry += 1
 
                 if attempt + 1 == REQUEST_MAX_RETRY:
                     console.print(f"[red]Final retry failed for segment: {index}")
-                    self.queue.put((index, None))  # Marker for failed segment
+                    
+                    try:
+                        self.queue.put((index, None), timeout=0.1)
+                    except queue.Full:
+                        time.sleep(0.02)
+                        self.queue.put((index, None))
+
                     progress_bar.update(1)
                     self.info_nFailed += 1
                     return
                 
-                with self.active_retries_lock:
-                    self.active_retries += 1
+                if attempt < 2:
+                    sleep_time = 0.5 + attempt * 0.5
+                else:
+                    sleep_time = min(3.0, backoff_factor ** attempt)
                 
-                #sleep_time = backoff_factor * (2 ** attempt)
-                sleep_time = backoff_factor * (attempt + 1)
-                logging.info(f"Retrying segment {index} in {sleep_time} seconds...")
                 time.sleep(sleep_time)
-                
-                with self.active_retries_lock:
-                    self.active_retries -= 1
 
     def write_segments_to_file(self):
         """
@@ -325,8 +376,6 @@ class M3U8_Segments:
             - type (str): Type of download: 'video' or 'audio'
         """
         if TELEGRAM_BOT:
-
-          # Viene usato per lo screen 
           console.log("####")
           
         self.get_info()
@@ -337,59 +386,64 @@ class M3U8_Segments:
             unit='s',
             ascii='░▒█',
             bar_format=self._get_bar_format(description),
-            mininterval=0.6,
-            maxinterval=1.0,
-            file=sys.stdout,        # Using file=sys.stdout to force in-place updates because sys.stderr may not support carriage returns in this environment.
+            mininterval=2.0,
+            maxinterval=5.0,
+            file=sys.stdout,
         )
 
         try:
             writer_thread = threading.Thread(target=self.write_segments_to_file)
             writer_thread.daemon = True
             writer_thread.start()
-
-            # Configure workers and delay
             max_workers = self._get_worker_count(type)
             
-            # Download segments with completion verification
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = []
+                
                 for index, segment_url in enumerate(self.segments):
-
-                    # Check for interrupt before submitting each task
                     if self.interrupt_flag.is_set():
                         break
 
-                    time.sleep(TQDM_DELAY_WORKER)
+                    # Delay every 200 submissions to reduce CPU usage
+                    if index % 200 == 0 and index > 0:
+                        time.sleep(TQDM_DELAY_WORKER)
+                        
                     futures.append(executor.submit(self.download_segment, segment_url, index, progress_bar))
 
-                # Wait for futures with interrupt handling
+                # Process completed futures
                 for future in as_completed(futures):
                     if self.interrupt_flag.is_set():
                         break
                     try:
-                        future.result()
+                        future.result(timeout=1.0)
                     except Exception as e:
                         logging.error(f"Error in download thread: {str(e)}")
 
-                # Interrupt handling for missing segments
+                # Retry missing segments if necessary
                 if not self.interrupt_flag.is_set():
                     total_segments = len(self.segments)
                     completed_segments = len(self.downloaded_segments)
                     
                     if completed_segments < total_segments:
                         missing_segments = set(range(total_segments)) - self.downloaded_segments
-                        logging.warning(f"Missing segments: {sorted(missing_segments)}")
-                        
-                        # Retry missing segments with interrupt check
-                        for index in missing_segments:
-                            if self.interrupt_flag.is_set():
-                                break
+                        logging.warning(f"Missing {len(missing_segments)} segments")
 
-                            try:
-                                self.download_segment(self.segments[index], index, progress_bar)
-                                
-                            except Exception as e:
-                                logging.error(f"Failed to retry segment {index}: {str(e)}")
+                        # Retry missing segments with interrupt check
+                        retry_workers = min(2, len(missing_segments))
+                        if retry_workers > 0:
+                            retry_futures = []
+                            for index in missing_segments:
+                                if self.interrupt_flag.is_set():
+                                    break
+                                retry_futures.append(executor.submit(self.download_segment, self.segments[index], index, progress_bar))
+                            
+                            for future in as_completed(retry_futures):
+                                if self.interrupt_flag.is_set():
+                                    break
+                                try:
+                                    future.result(timeout=2.0)
+                                except Exception as e:
+                                    logging.error(f"Failed to retry segment: {str(e)}")
 
         finally:
             self._cleanup_resources(writer_thread, progress_bar)
@@ -412,14 +466,12 @@ class M3U8_Segments:
     
     def _get_worker_count(self, stream_type: str) -> int:
         """
-        Calculate optimal parallel workers based on stream type and infrastructure.
+        Return parallel workers based on stream type and infrastructure.
         """
-        base_workers = {
+        return {
             'video': DEFAULT_VIDEO_WORKERS,
             'audio': DEFAULT_AUDIO_WORKERS
         }.get(stream_type.lower(), 1)
-
-        return base_workers
     
     def _generate_results(self, stream_type: str) -> Dict:
         """Package final download results."""
@@ -441,11 +493,13 @@ class M3U8_Segments:
         self.stop_event.set()
         writer_thread.join(timeout=30)
         progress_bar.close()
+        self._cleanup_client()
         
         if self.info_nFailed > 0:
             self._display_error_summary()
 
         self.buffer = {}
+        self.write_buffer.clear()
         self.expected_index = 0
 
     def _display_error_summary(self) -> None:
