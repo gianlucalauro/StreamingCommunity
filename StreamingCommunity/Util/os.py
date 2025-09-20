@@ -360,23 +360,7 @@ class OsSummary:
             console.print(f"Failed to install {lib_name}: {e}", style="bold red")
             sys.exit(1)
 
-    def check_python_version(self):
-        """
-        Check if the installed Python is the official CPython distribution.
-        Exits with a message if not the official version.
-        """
-        python_implementation = platform.python_implementation()
-        python_version = platform.python_version()
-
-        if python_implementation != "CPython":
-            console.print(f"[bold red]Warning: You are using a non-official Python distribution: {python_implementation}.[/bold red]")
-            console.print("Please install the official Python from [bold blue]https://www.python.org[/bold blue] and try again.", style="bold yellow")
-            sys.exit(0)
-
-        console.print(f"[cyan]Python version: [bold red]{python_version}[/bold red]")
-
     def init(self):
-        self.check_python_version()
 
         # Initialize binary paths and check for existing binaries
         binary_dir = binary_paths.get_binary_directory()

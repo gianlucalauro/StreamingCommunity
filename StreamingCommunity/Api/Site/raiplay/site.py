@@ -42,7 +42,7 @@ def determine_media_type(item):
 
         scraper = GetSerieInfo(program_name)
         scraper.collect_info_title()
-        return "tv" if scraper.getNumberSeason() > 0 else "film"
+        return scraper.prog_tipology, scraper.prog_description, scraper.prog_year
     
     except Exception as e:
         console.print(f"[red]Error determining media type: {e}[/red]")
@@ -91,18 +91,20 @@ def title_search(query: str) -> int:
         return 0
 
     # Limit to only 15 results for performance
-    data = response.json().get('agg').get('titoli').get('cards')
-    data = data[:15] if len(data) > 15 else data
+    data = response.json().get('agg').get('titoli').get('cards')[:15]
     
     # Process each item and add to media manager
     for item in data:
+        media_type, prog_description, prog_year = determine_media_type(item)
         media_search_manager.add_media({
             'id': item.get('id', ''),
             'name': item.get('titolo', ''),
-            'type': determine_media_type(item),
+            'type': media_type,
             'path_id': item.get('path_id', ''),
             'url': f"https://www.raiplay.it{item.get('url', '')}",
             'image': f"https://www.raiplay.it{item.get('immagine', '')}",
+            'desc': prog_description,
+            'year': prog_year
         })
           
     return media_search_manager.get_length()

@@ -23,6 +23,9 @@ class GetSerieInfo:
         self.base_url = "https://www.raiplay.it"
         self.program_name = program_name
         self.series_name = program_name
+        self.prog_tipology = None
+        self.prog_description = None
+        self.prog_year = None
         self.seasons_manager = SeasonManager()
 
     def collect_info_title(self) -> None:
@@ -38,6 +41,9 @@ class GetSerieInfo:
                 
             response.raise_for_status()
             json_data = response.json()
+            self.prog_tipology = "tv" if "tv" in json_data.get('track_info').get('typology') else "film"
+            self.prog_description = json_data.get('program_info', '').get('vanity', '')
+            self.prog_year = json_data.get('program_info', '').get('year', '')
             
             # Look for seasons in the 'blocks' property
             for block in json_data.get('blocks', []):
@@ -59,8 +65,6 @@ class GetSerieInfo:
                         for season_set in block.get('sets', []):
                             self._add_season(season_set, block.get('id'))
 
-        except httpx.HTTPError as e:
-            logging.error(f"Error collecting series info: {e}")
         except Exception as e:
             logging.error(f"Unexpected error collecting series info: {e}")
 

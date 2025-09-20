@@ -64,7 +64,6 @@ class HLSClient:
         Returns:
             Response content/text or None if all retries fail
         """
-        # Use unified HTTP client (inherits timeout/verify/proxy from config)
         client = create_client(headers=self.headers)
 
         for attempt in range(RETRY_LIMIT):
