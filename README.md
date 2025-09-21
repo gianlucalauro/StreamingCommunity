@@ -40,43 +40,24 @@
 
 ## Manual Installation
 
-<details>
-<summary>📝 Manual Installation & Update</summary>
-
-<details>
-<summary>📋 Requirements</summary>
-
-Prerequisites:
-* [Python](https://www.python.org/downloads/) > 3.8
-</details>
-
-<details>
 <summary>⚙️ Python Dependencies</summary>
-
-```bash
-pip install -r requirements.txt
-```
-</details>
-
-<details>
-<summary>🚀 Usage</summary>
 
 #### On Windows:
 
 ```powershell
-python test_run.py
+pip install -r requirements.txt
 ```
 
 #### On Linux/MacOS:
 
 ```bash
-python3 test_run.py
+pip3 install -r requirements.txt
+# or alternatively:
+python3 -m pip install -r requirements.txt
 ```
-</details>
 
-## Update
-
-Keep your script up to date with the latest features by running:
+<detail>
+<summary> Update </summary>
 
 ### On Windows:
 
@@ -89,8 +70,6 @@ python update.py
 ```bash
 python3 update.py
 ```
-
-</details>
 
 ---
 
@@ -123,7 +102,6 @@ python3 test_run.py
 
 ## Downloaders
 
-<details>
 <summary>📥 HLS</summary>
 
 Download HTTP Live Streaming (HLS) content from m3u8 URLs.
@@ -140,9 +118,7 @@ downloader.download()
 ```
 
 See [HLS example](./Test/EasyDownload//HLS.py) for complete usage.
-</details>
 
-<details>
 <summary>📽️ MP4</summary>
 
 Direct MP4 file downloader with support for custom headers and referrer.
@@ -159,9 +135,7 @@ downloader.download()
 ```
 
 See [MP4 example](./Test/EasyDownload/MP4.py) for complete usage.
-</details>
 
-<details>
 <summary>🧲 TOR</summary>
 
 Download content via torrent magnet links.
@@ -177,9 +151,7 @@ client.start_download()
 ```
 
 See [Torrent example](./Test/EasyDownload/TOR.py) for complete usage.
-</details>
 
-<details>
 <summary>🎞️ DASH</summary>
 
 ```python
@@ -201,19 +173,15 @@ dash_process.get_status()
 ```
 
 See [DASH example](./Test/EasyDownload/DASH.py) for complete usage.
-</details>
 
 ---
 
 ## Configuration
 
-<details>
 <summary>⚙️ Overview</summary>
 
 You can change some behaviors by tweaking the configuration file. The configuration file is divided into several main sections.
-</details>
 
-<details>
 <summary>📁 OUT_FOLDER</summary>
 
 ```json
@@ -249,9 +217,7 @@ You can change some behaviors by tweaking the configuration file. The configurat
 
 #### Additional Options
 - `add_siteName`: Appends site_name to root path (can be changed with `--add_siteName true/false`)
-</details>
 
-<details>
 <summary>🔄 QBIT_CONFIG Settings</summary>
 
 ```json
@@ -266,9 +232,7 @@ You can change some behaviors by tweaking the configuration file. The configurat
 ```
 
 To enable qBittorrent integration, follow the setup guide [here](https://github.com/lgallard/qBittorrent-Controller/wiki/How-to-enable-the-qBittorrent-Web-UI).
-</details>
 
-<details>
 <summary>📥 M3U8_DOWNLOAD Settings</summary>
 
 ```json
@@ -311,9 +275,7 @@ To enable qBittorrent integration, follow the setup guide [here](https://github.
 
 #### Cleanup
 - `cleanup_tmp_folder`: Remove temporary .ts files after download
-</details>
 
-<details>
 <summary>🔍 M3U8_PARSER Settings</summary>
 
 ```json
@@ -338,11 +300,9 @@ To enable qBittorrent integration, follow the setup guide [here](https://github.
 #### Link options
 - `get_only_link`: Return M3U8 playlist/index URL instead of downloading
 
-</details>
 
 ## Update Domains
 
-<details>
 <summary>🌐 Domain Configuration Methods</summary>
 
 There are two ways to manage the domains for the supported websites:
@@ -398,7 +358,6 @@ If online fetching fails, the script will automatically attempt to use the local
 #### 💡 Adding a New Site
 If you want to request a new site to be added to the repository, message us on the Discord server!
 
-</details>
 
 ---
 
@@ -460,13 +419,10 @@ StreamingCommunity --site streamingcommunity --search "interstellar" --auto-firs
 
 # Global Search
 
-<details>
 <summary>🔍 Feature Overview</summary>
 
 You can now search across multiple streaming sites at once using the Global Search feature. This allows you to find content more efficiently without having to search each site individually.
-</details>
 
-<details>
 <summary>🎯 Search Options</summary>
 
 When using Global Search, you have three ways to select which sites to search:
@@ -474,9 +430,7 @@ When using Global Search, you have three ways to select which sites to search:
 1. **Search all sites** - Searches across all available streaming sites
 2. **Search by category** - Group sites by their categories (movies, series, anime, etc.)
 3. **Select specific sites** - Choose individual sites to include in your search
-</details>
 
-<details>
 <summary>📝 Navigation and Selection</summary>
 
 After performing a search:
@@ -489,16 +443,13 @@ After performing a search:
 2. Select an item by number to view details or download
 
 3. The system will automatically use the appropriate site's API to handle the download
-</details>
 
-<details>
 <summary>⌨️ Command Line Arguments</summary>
 
 The Global Search can be configured from the command line:
 
 - `--global` - Perform a global search across multiple sites.
 - `-s`, `--search` - Specify the search terms.
-</details>
 
 ---
 
@@ -506,7 +457,6 @@ The Global Search can be configured from the command line:
 
 ## Hook/Plugin System
 
-<details>
 <summary>🧩 Run custom scripts before/after the main execution</summary>
 
 Define pre/post hooks in `config.json` under the `HOOKS` section. Supported types:
@@ -557,13 +507,11 @@ Notes:
 
 Hooks are executed automatically by `run.py` before (`pre_run`) and after (`post_run`) the main execution.
 
-</details>
 
 ---
 
 # Docker
 
-<details>
 <summary>🐳 Basic Setup</summary>
 
 Build the image:
@@ -581,9 +529,7 @@ Tip CLI:
 ```
 docker exec -it streaming-community python test_run.py
 ```
-</details>
 
-<details>
 <summary>💾 Custom Storage Location</summary>
 
 By default the videos will be saved in `/app/Video` inside the container. To save them on your machine:
@@ -591,9 +537,7 @@ By default the videos will be saved in `/app/Video` inside the container. To sav
 ```
 docker run -it --dns 9.9.9.9 -p 8000:8000 -v /path/to/download:/app/Video streaming-community-api
 ```
-</details>
 
-<details>
 <summary>🛠️ Quick Setup with Make</summary>
 
 Inside the Makefile (install `make`) are already configured two commands to build and run the container:
@@ -606,12 +550,10 @@ make LOCAL_DIR=/path/to/download run-container
 ```
 
 The `run-container` command mounts also the `config.json` file, so any change to the configuration file is reflected immediately without having to rebuild the image.
-</details>
 
 
 # Telegram Usage
 
-<details>
 <summary>⚙️ Basic Configuration</summary>
 
 The bot was created to replace terminal commands and allow interaction via Telegram. Each download runs within a screen session, enabling multiple downloads to run simultaneously.
@@ -641,9 +583,7 @@ TOKEN_TELEGRAM=IlTuo2131TOKEN$12D3Telegram
 AUTHORIZED_USER_ID=12345678
 DEBUG=False
 ```
-</details>
 
-<details>
 <summary>📥 Dependencies & Launch</summary>
 
 Install dependencies:
@@ -654,8 +594,7 @@ pip install -r requirements.txt
 Start the bot (from /StreamingCommunity/TelegramHelp):
 ```bash
 python3 telegram_bot.py
-```
-</details>d
+```d
 - 🔹 `/list` – Displays the status of active downloads, with options to:
   - Stop an incorrect download using `/stop <ID>`
   - View the real-time output of a download using `/screen <ID>`

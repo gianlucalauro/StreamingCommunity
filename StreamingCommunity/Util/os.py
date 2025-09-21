@@ -395,6 +395,23 @@ class OsSummary:
         self._display_binary_paths()
         time.sleep(0.25)
 
+    def extract_png_chunk(self, png_with_wvd, out_wvd_path):
+        with open(png_with_wvd, "rb") as f: 
+            data = f.read()
+        pos = 8
+
+        while pos < len(data):
+            length = struct.unpack(">I", data[pos:pos+4])[0]
+            chunk_type = data[pos+4:pos+8]
+            chunk_data = data[pos+8:pos+8+length]
+
+            if chunk_type == b"stEg":
+                with open(out_wvd_path, "wb") as f: 
+                    f.write(chunk_data)
+                return
+            
+            pos += 12 + length
+
     def get_wvd_path(self) -> str:
         """
         Searches the system's binary folder and returns the path of the first file ending with 'wvd'.
@@ -414,7 +431,7 @@ class OsSummary:
         
         if os.path.exists(png_path):
             try:
-                extract_png_chunk(png_path, out_wvd_path)
+                self.extract_png_chunk(png_path, out_wvd_path)
                 if os.path.exists(out_wvd_path):
                     return out_wvd_path
                 
@@ -450,23 +467,6 @@ os_summary = OsSummary()
 def suppress_output():
     with contextlib.redirect_stdout(io.StringIO()):
         yield
-
-def extract_png_chunk(png_with_wvd, out_wvd_path):
-    with open(png_with_wvd, "rb") as f: 
-        data = f.read()
-    pos = 8
-
-    while pos < len(data):
-        length = struct.unpack(">I", data[pos:pos+4])[0]
-        chunk_type = data[pos+4:pos+8]
-        chunk_data = data[pos+8:pos+8+length]
-
-        if chunk_type == b"stEg":
-            with open(out_wvd_path, "wb") as f: 
-                f.write(chunk_data)
-            return
-        
-        pos += 12 + length
 
 def get_call_stack():
     """Retrieves the current call stack with details about each call."""
